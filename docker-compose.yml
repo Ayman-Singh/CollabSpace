@@ -1,0 +1,92 @@
+version: '3.9'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    container_name: collabspace-frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      - NEXT_PUBLIC_AI_URL=http://localhost:8001
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    networks:
+      - collabspace
+
+  backend:
+    build:
+      context: ./backend
+    container_name: collabspace-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/collabspace
+      - REDIS_URL=redis://redis:6379
+      - AI_SERVICE_URL=http://ai-service:8001
+      - JWT_SECRET=supersecretkey
+    ports:
+      - '8000:8000'
+    depends_on:
+      - db
+      - redis
+      - ai-service
+    networks:
+      - collabspace
+
+  ai-service:
+    build:
+      context: ./ai-service
+    container_name: collabspace-ai-service
+    restart: unless-stopped
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8001
+      - OPENAI_API_KEY=your-openai-key
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/collabspace
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - '8001:8001'
+    depends_on:
+      - db
+      - redis
+    networks:
+      - collabspace
+
+  db:
+    image: postgres:15
+    container_name: collabspace-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=collabspace
+    ports:
+      - '5432:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - collabspace
+
+  redis:
+    image: redis:7
+    container_name: collabspace-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - collabspace
+
+volumes:
+  db_data:
+  redis_data:
+
+networks:
+  collabspace:
+    driver: bridge 

@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  firstName     String?
+  lastName      String?
+  avatar        String?
+  bio           String?
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Authentication
+  password      String?
+  refreshToken  String?
+  googleId      String?   @unique
+  githubId      String?   @unique
+
+  // Relations
+  projects      ProjectMember[]
+  ownedProjects Project[]        @relation("ProjectOwner")
+  files         File[]
+  notifications Notification[]
+  messages      Message[]
+  activities    Activity[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  ownerId     String
+  owner       User      @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     ProjectMember[]
+  files       File[]
+  activities  Activity[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  role      ProjectRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@map("project_members")
+}
+
+model File {
+  id          String    @id @default(cuid())
+  name        String
+  path        String
+  size        Int
+  mimeType    String
+  isPublic    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("files")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Activity {
+  id        String       @id @default(cuid())
+  type      ActivityType
+  details   Json?
+  createdAt DateTime     @default(now())
+
+  // Relations
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  MODERATOR
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum NotificationType {
+  PROJECT_INVITE
+  FILE_SHARED
+  MESSAGE_RECEIVED
+  SYSTEM_UPDATE
+}
+
+enum ActivityType {
+  PROJECT_CREATED
+  PROJECT_JOINED
+  FILE_UPLOADED
+  FILE_DELETED
+  MESSAGE_SENT
+  USER_JOINED
+} 
